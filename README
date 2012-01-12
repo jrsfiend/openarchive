@@ -1,0 +1,10 @@
+To compile properly, I had to do the following in sequence:
+
+1.  https://github.com/sdolgy/maven-openfire-plugin -- maven install this
+2.  Obtain the openfire.jar from Openfire, and the dwr-2.0.5.jar, and install the files into the local maven repository:
+
+	mvn install:install-file -Dfile=contrib\dwr-2.0.5.jar -DgroupId=org.directwebremoting -DartifactId=dwr -Dversion=2.0.5 -Dpackaging=jar
+	mvn install:install-file -Dfile=contrib\openfire.jar -DgroupId=org.igniterealtime.openfire -DartifactId=openfire -Dversion=3.7.1 -Dpackaging=jar
+	
+3.  Update the pom.xml to reflect the updated Openfire version
+
