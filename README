@@ -8,4 +8,4 @@ To generate the OpenArchive SNAPSHOT jar, the following were performed in sequen
 	mvn install:install-file -Dfile=contrib\openfire.jar -DgroupId=org.igniterealtime.openfire -DartifactId=openfire -Dversion=3.7.1 -Dpackaging=jar
 	
 3.  Update the pom.xml to reflect the updated Openfire version (changed to 3.7.1)
-
+4.  maven install
