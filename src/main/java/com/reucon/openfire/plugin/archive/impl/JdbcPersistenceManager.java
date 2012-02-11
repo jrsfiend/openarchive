@@ -14,7 +14,9 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Manages database persistence.
@@ -71,6 +73,13 @@ public class JdbcPersistenceManager implements PersistenceManager
     public static final String SELECT_PARTICIPANTS_BY_CONVERSATION =
             "SELECT participantId,startTime,endTime,jid FROM archiveParticipants WHERE conversationId =? ORDER BY startTime";
 
+
+    // added to satisfy grouping all conversations into one conversation
+    public static final String SELECT_ALL_MESSAGES_CONVERSATIONS_BY_JIDS = 
+    		"SELECT b.messageId, b.time, b.conversationId, b.direction, b.type, b.body FROM archiveConversations a, archiveMessages b " + 
+    				"WHERE a.ownerJid=? AND a.withJid=? AND a.conversationId=b.conversationId ORDER BY b.time";
+        
+    
     public boolean createMessage(ArchivedMessage message)
     {
         long id;
@@ -702,6 +711,51 @@ public class JdbcPersistenceManager implements PersistenceManager
             }
         }
 
+        // sdolgy added to enable grouped conversations into a single conversation
+        if (ownerJid != null && withJid != null && conversationId == null && start == null) { 
+            try {
+				con = DbConnectionManager.getConnection();
+                pstmt = con.prepareStatement(SELECT_ALL_MESSAGES_CONVERSATIONS_BY_JIDS);
+        		pstmt.setString(1, ownerJid);
+        		pstmt.setString(2, withJid);
+        		Log.warn("wuchu override: " + pstmt.toString());
+        		rs = pstmt.executeQuery();
+        		
+        		Date convoStartTime = new Date();
+        		Date convoEndTime = new Date();
+        		long convoId = 0;
+        		
+        		LinkedHashMap<Integer, ArchivedMessage> messages = new LinkedHashMap<Integer, ArchivedMessage>();
+        		
+        		Integer i = 0;
+                while (rs.next()) {
+                	if (i == 0) { 
+                		convoStartTime = millisToDate(rs.getLong(2));
+                	} else if (rs.last()) { 
+                		convoEndTime = millisToDate(rs.getLong(2));
+                		convoId = rs.getLong(3);
+                	}
+                    ArchivedMessage message = new ArchivedMessage(millisToDate(rs.getLong(2)), ArchivedMessage.Direction.valueOf(rs.getString(4).trim()),rs.getString(6));
+                    messages.put(i, message);
+                    i++;
+                }
+                
+                if (convoStartTime != null && convoEndTime != null) {
+                	Log.warn("conversation messages: " + messages.size());
+                	conversation = new Conversation(convoStartTime, convoEndTime, ownerJid, null, withJid, null, null, null);
+                	conversation.setId(convoId);
+                	for (Map.Entry<Integer, ArchivedMessage> message : messages.entrySet()) {
+						conversation.addMessage(message.getValue());
+					}
+                	return conversation;
+                }
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }        
+        
+        
         try
         {
             con = DbConnectionManager.getConnection();
